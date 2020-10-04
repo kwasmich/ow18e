@@ -409,6 +409,8 @@ const char* ow_unit_to_str(ow_unit_t unit)
 	case OW_UNIT_FARAD: 			return "Farad";
 
 	case OW_UNIT_HERTZ: 			return "Hertz";
+	case OW_UNIT_KILOHERTZ: 		return "Kilohertz";
+	case OW_UNIT_MEGAHERTZ: 		return "Megahertz";
 	case OW_UNIT_PERCENT: 			return "Percent";
 
 	case OW_UNIT_CELSIUS: 			return "Celsius";
@@ -441,6 +443,8 @@ const char* ow_unit_to_short_str(ow_unit_t unit)
 	case OW_UNIT_FARAD: 			return "F";
 
 	case OW_UNIT_HERTZ: 			return "Hz";
+	case OW_UNIT_KILOHERTZ: 		return "kHz";
+	case OW_UNIT_MEGAHERTZ:			return "MHz";
 	case OW_UNIT_PERCENT: 			return "%";
 
 	case OW_UNIT_CELSIUS: 			return "°C";
@@ -588,6 +592,16 @@ bool ow_recv(const ow_config_t* config, ow_sample_func_t callback, void* context
 		uint8_t buf[HCI_MAX_EVENT_SIZE];
 		int bytes_read = read(bt_sock, buf, sizeof(buf));
 
+#ifdef DEBUG
+		printf("%2d: ", bytes_read);
+
+		for (int j = 0; j < bytes_read; j++) {
+			printf("%02x ", buf[j]);
+		}
+
+		puts("");
+#endif // DEBUG
+
 		//Error case?
 		if (bytes_read < 0)
 		{
@@ -666,22 +680,23 @@ bool ow_recv(const ow_config_t* config, ow_sample_func_t callback, void* context
 		//Get unit and places:
 		uint16_t unit_places = *(uint16_t*)&buf[12];
 
+		sample.is_diode_test = false;
+		sample.is_continuity_test = false;
+
 		//Determine the unit and the current type:
 		switch (unit_places & 0xFFF8)
 		{
 		case 0xF018: sample.unit = OW_UNIT_MILLIVOLT; sample.current_type = OW_CURRENT_TYPE_DC; break;
+		case 0xF020: sample.unit = OW_UNIT_VOLT; sample.current_type = OW_CURRENT_TYPE_DC; break;
 		case 0xF058: sample.unit = OW_UNIT_MILLIVOLT; sample.current_type = OW_CURRENT_TYPE_AC; break;
-		case 0xF020: sample.unit = OW_UNIT_VOLT; sample.current_type = OW_CURRENT_TYPE_DC; sample.is_diode_test = false; break;
-		case 0xF060: sample.unit = OW_UNIT_VOLT; sample.current_type = OW_CURRENT_TYPE_AC; sample.is_diode_test = false; break;
-		case 0xF2A0: sample.unit = OW_UNIT_VOLT; sample.current_type = OW_CURRENT_TYPE_DC; sample.is_diode_test = true; break;
+		case 0xF060: sample.unit = OW_UNIT_VOLT; sample.current_type = OW_CURRENT_TYPE_AC; break;
 		case 0xF090: sample.unit = OW_UNIT_MICROAMPERE; sample.current_type = OW_CURRENT_TYPE_DC; break;
-		case 0xF0D0: sample.unit = OW_UNIT_MICROAMPERE; sample.current_type = OW_CURRENT_TYPE_AC; break;
 		case 0xF098: sample.unit = OW_UNIT_MILLIAMPERE; sample.current_type = OW_CURRENT_TYPE_DC; break;
-		case 0xF0D8: sample.unit = OW_UNIT_MILLIAMPERE; sample.current_type = OW_CURRENT_TYPE_AC; break;
 		case 0xF0A0: sample.unit = OW_UNIT_AMPERE; sample.current_type = OW_CURRENT_TYPE_DC; break;
+		case 0xF0D0: sample.unit = OW_UNIT_MICROAMPERE; sample.current_type = OW_CURRENT_TYPE_AC; break;
+		case 0xF0D8: sample.unit = OW_UNIT_MILLIAMPERE; sample.current_type = OW_CURRENT_TYPE_AC; break;
 		case 0xF0E0: sample.unit = OW_UNIT_AMPERE; sample.current_type = OW_CURRENT_TYPE_AC; break;
-		case 0xF120: sample.unit = OW_UNIT_OHM; sample.is_continuity_test = false; break;
-		case 0xF2E0: sample.unit = OW_UNIT_OHM; sample.is_continuity_test = true; break;
+		case 0xF120: sample.unit = OW_UNIT_OHM; break;
 		case 0xF128: sample.unit = OW_UNIT_KILOOHM; break;
 		case 0xF130: sample.unit = OW_UNIT_MEGAOHM; break;
 		case 0xF148: sample.unit = OW_UNIT_NANOFARAD; break;
@@ -689,35 +704,36 @@ bool ow_recv(const ow_config_t* config, ow_sample_func_t callback, void* context
 		case 0xF158: sample.unit = OW_UNIT_MILLIFARAD; break;
 		case 0xF160: sample.unit = OW_UNIT_FARAD; break;
 		case 0xF1A0: sample.unit = OW_UNIT_HERTZ; break;
+		case 0xF1A8: sample.unit = OW_UNIT_KILOHERTZ; break;
+		case 0xF1B0: sample.unit = OW_UNIT_MEGAHERTZ; break;
 		case 0xF1E0: sample.unit = OW_UNIT_PERCENT; break;
 		case 0xF220: sample.unit = OW_UNIT_CELSIUS; break;
 		case 0xF260: sample.unit = OW_UNIT_FAHRENHEIT; break;
+		case 0xF2A0: sample.unit = OW_UNIT_VOLT; sample.current_type = OW_CURRENT_TYPE_DC; sample.is_diode_test = true; break;
+		case 0xF2E0: sample.unit = OW_UNIT_OHM; sample.is_continuity_test = true; break;
 		case 0xF360: sample.unit = OW_UNIT_NEARFIELD; break;
 
 		default: sample.unit = OW_UNIT_UNKNOWN;
 		}
 
 		//Use value, sign bit and decimal places to retrieve the final value:
-		//First, test for an overflow.
-		if (unit_places & (1 << 2))
+		//Determine the factor to generate the decimal places:
+		double factor = 0;
+
+		switch (unit_places & 0x0007)
 		{
-			sample.value = NAN;
+		case 0: factor = 1; break;
+		case 1: factor = 0.1; break;
+		case 2: factor = 0.01; break;
+		case 3: factor = 0.001; break;
+		case 4: factor = 0.0001; break;
 		}
-		else
-		{
-			//Determine the factor to generate the decimal places:
-			double factor;
 
-			switch (unit_places & 0x0003)
-			{
-			case 0: factor = 1; break;
-			case 1: factor = 0.1; break;
-			case 2: factor = 0.01; break;
-			case 3: factor = 0.001; break;
-			}
-
+		if (factor > 0) {
 			//Build the number using the sign bit:
 			sample.value = ((value_sign & 0x8000) ? -1.0 : 1.0) * factor * (double)(value_sign & 0x3FFF);
+		} else {
+			sample.value = NAN;
 		}
 
 		//Get the flag byte:

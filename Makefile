@@ -8,7 +8,7 @@ SRCDIR=src
 BUILDDIR=build
 
 # Binary
-BIN=ow18b
+BIN=ow18e
 
 # Source files
 SRC=$(wildcard $(SRCDIR)/*.c)

@@ -112,6 +112,8 @@ typedef enum __ow_unit_t__
 	OW_UNIT_FARAD, 				//0xF160 (?)
 
 	OW_UNIT_HERTZ, 				//0xF1A0
+	OW_UNIT_KILOHERTZ, 			//0xF1A8
+	OW_UNIT_MEGAHERTZ, 			//0xF1B0
 	OW_UNIT_PERCENT, 			//0xF1E0
 
 	OW_UNIT_CELSIUS, 			//0xF220
