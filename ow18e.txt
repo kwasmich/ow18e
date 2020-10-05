@@ -1,0 +1,48 @@
+Datagram for each measurement
+
+18: ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ??    2 4        f 0        0 5        0 0        1 f        0 0
+                                        0010 0100  1111 0000  0000 0101  0000 0000  0001 1111  0000 0000 
+                                              ^^^                   ^^^             ^^^^ ^^^^  ^^^^ ^^^^
+                                              |||                   |||             |||| ||||  |||| ||||
+                                              |||                   |||             |||| ||||  |Value MSB
+                                              |||                   |||             |||| ||||  Sign
+                                              |||                   |||             Value LSB
+                                              |||                   ||Hold
+                                              |||                   |Relative
+                                              |||                   Auto Range
+                                              decimal places
+
+                                           1 1xxx     f 0 mV DC                           
+                                           2 0xxx     f 0  V DC
+                                           5 1xxx     f 0 mV AC                          
+                                           6 0xxx     f 0  V AC
+                                           9 0xxx     f 0 µA DC
+                                           9 1xxx     f 0 mA DC
+                                           a 0xxx     f 0  A DC
+                                           d 0xxx     f 0 µA AC
+                                           d 1xxx     f 0 mA AC
+                                           e 0xxx     f 0  A AC
+
+                                           2 0xxx     f 1 Ohm                     
+                                           2 1xxx     f 1 kOhm
+                                           3 0xxx     f 1 MOhm
+                                           4 1xxx     f 1 nF
+                                           5 0xxx     f 1 µF
+                                           5 1xxx     f 1 mF
+                                           a 0xxx     f 1 Hertz
+                                           a 1xxx     f 1 kilo Hertz
+                                           e 0xxx     f 1 Percent
+                                           2 0xxx     f 2 °C
+                                           6 0xxx     f 2 °F (value is in °C)
+                                           a 0xxx     f 2 Diode
+                                           e 0xxx     f 2 Continuity
+                                           6 0xxx     f 3 NCV                     
+                                                                        
+                                                                        
+                                                                        
+                                                                                                                                                                   
+                                                                                                                                                                   
+                                                                                                                                                                   
+                                                                                                                                                                   
+                                                                                                                                             
+                                                   
