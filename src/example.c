@@ -6,10 +6,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+static volatile bool s_terminated = false;
+
 // SIGINT handler for clean shutdown
-// void signal_handler(int signal){
-//    terminate....
-//}
+static void signal_handler(int signal){
+   s_terminated = true;
+}
 
 //Function to retrieve the samples:
 static bool sample_func(ow_sample_t sample, void* context)
@@ -17,16 +19,13 @@ static bool sample_func(ow_sample_t sample, void* context)
 	//Print the sample:
 	printf("%lf %s\n", sample.value, ow_unit_to_short_str(sample.unit));
 
-	//Interpret the context as pointer to a counter:
-	int* counter = (int*)context;
-
 	//Are we done yet?
-	return --(*counter) > 0;
+	return !s_terminated;
 }
 
 int main(void)
 {
-	// signal(SIGINT, signal_handler);
+	signal(SIGINT, signal_handler);
 
 	//Use automatic parameters (first Bluetooth interface, automatic address scanning):
 	ow_config_t config =
@@ -36,10 +35,7 @@ int main(void)
 		.connect_mode = OW_CONNECT_MODE_AUTOMATIC
 	};
 
-	//Receive 10 samples:
-	int counter = 100;
-
-	if (!ow_recv(&config, sample_func, &counter))
+	if (!ow_recv(&config, sample_func, NULL))
 	{
 		perror("Receiving failed");
 		return EXIT_FAILURE;
